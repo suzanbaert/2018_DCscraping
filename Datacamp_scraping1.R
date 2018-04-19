@@ -1,44 +1,49 @@
 library(rvest)
 library(xml2)
 library(stringr)
+library(purrr)
 
-robotstxt::paths_allowed("https://www.datacamp.com/courses/tech:r")
+robotstxt::paths_allowed("https://www.datacamp.com/courses/")
 
 
-
-
-url <- "https://www.datacamp.com/courses/tech:r"
+#modify scraping scripts
+modify_script <- function(phantomjs_link, url, local_html) {
+  script <- readLines("_scrape_basescript.js")
+  script[5] <- paste0("var path = '", local_html, "'")
+  script[7] <- paste0("page.open('", url, "', function (status) {" )
+  
+  writeLines(script, con = phantomjs_link)  
+}
 
 
 #main_page_links ####
 
-# write the javascript code to a new scrape.js file
-writeLines(
-"var webPage = require('webpage');
-var page = webPage.create();
-     
-var fs = require('fs');
-var path = 'phantomJS_htmlpages/mainpage2.html'
-           
-page.open('https://www.datacamp.com/courses/tech:r', function (status) {
-  var content = page.content;
-  fs.write(path,content,'w')
-  phantom.exit();});",
-           
-con = "phantomJS_scripts/scrape_mainpage.js")
+get_mainpages <- function(technology) {
+  Sys.sleep(1)
+  
+  #get the js script
+  phantomjs_link <- paste0("phantomJS_scripts/scrape_mainpage_", technology, ".js")
+  url <- paste0("https://www.datacamp.com/courses/tech:", technology)
+  local_html <- paste0("phantomJS_htmlpages/mainpage_", technology, ".html")
+  modify_script(phantomjs_link, url, local_html)
+  
+  #read course file
+  system_call <- paste("E:///phantomjs/bin/phantomjs", phantomjs_link)
+  system(system_call)
+
+  data.frame(technology = technology,
+             links = XML::getHTMLLinks(local_html),
+             stringsAsFactors = FALSE)
+}
 
 
-# Download website via system call
-# first argument location of phantomjs, then location of scraping script
-system("E:///phantomjs/bin/phantomjs phantomJS_scripts/scrape_mainpage2.js")
+#get all course links
+all_links <- map_df(c("r", "python"), get_mainpages)
 
 
-#scraping links
-read_html("phantomJS_htmlpages/mainpage.html")
-
-all_r_links <- XML::getHTMLLinks("phantomJS_htmlpages/mainpage.html")
-all_r_links <- all_r_links[59:214]
-all_r_links <- all_r_links[duplicated(all_r_links)]
+all_courses <- all_links[c(59:214, 325:390), ]
+all_courses <- all_courses[duplicated(all_courses), ]
+all_courses$links <- str_replace(all_courses$links, "/courses/", "")
 
 
 
@@ -47,7 +52,6 @@ all_r_links <- all_r_links[duplicated(all_r_links)]
 #### Trying one link ####
 
 course_link <- all_r_links[1]
-course_link <- str_replace(course_link, "/courses/", "")
 phantom_link <- paste0("phantomJS_htmlpages/", course_link, ".html")
 url_link <- paste0("https://www.datacamp.com/courses/", course_link)
 
@@ -76,6 +80,43 @@ participants <- read_html(phantom_link) %>%
   str_extract("[0-9]+")
 
 
+
+
+#### To a function ####
+
+
+scrape_participants <- function(technology, course) {
+  Sys.sleep(1)
+  
+  #get the js script
+  phantomjs_link <- paste0("phantomJS_scripts/scrape_", course, ".js")
+  url <- paste0("https://www.datacamp.com/courses/", course)
+  local_html <- paste0("phantomJS_htmlpages/", course, ".html")
+  modify_script(phantomjs_link, url, local_html)
+  
+  #read course file
+  system_call <- paste("E:///phantomjs/bin/phantomjs", phantomjs_link)
+  system(system_call)
+
+  
+  #scraping links
+  participants <- read_html(local_html) %>% 
+    html_node(css = ".header-hero__footer") %>% 
+    html_text() %>%
+    str_replace_all("\\,", "") %>% 
+    str_extract("[0-9]+ Participants") %>% 
+    str_extract("[0-9]+")
+  
+  data.frame(technology = technology,
+             course = course,
+             date = Sys.Date(),
+             participants = participants,
+             stringsAsFactors = FALSE)
+}
+
+
+particants <- purrr::map2_df(all_courses$technology, all_courses$links, scrape_participants)
+saveRDS(particants, "data/participants180419.RDS")
 
 
 
