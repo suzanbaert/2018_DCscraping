@@ -51,7 +51,7 @@ all_courses$links <- str_replace(all_courses$links, "/courses/", "")
 
 #### Trying one link ####
 
-course_link <- all_r_links[1]
+course_link <- "free-introduction-to-r"
 phantom_link <- paste0("phantomJS_htmlpages/", course_link, ".html")
 url_link <- paste0("https://www.datacamp.com/courses/", course_link)
 
@@ -97,6 +97,7 @@ scrape_participants <- function(technology, course) {
   Sys.sleep(1)
   
   #get the js script
+  #course <- "free-introduction-to-r"
   phantomjs_link <- paste0("phantomJS_scripts/scrape_", course, ".js")
   url <- paste0("https://www.datacamp.com/courses/", course)
   local_html <- paste0("phantomJS_htmlpages/", course, ".html")
