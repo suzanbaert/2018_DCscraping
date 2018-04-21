@@ -71,6 +71,8 @@ writeLines(script, con = "phantomJS_scripts/scrape_course1.js" )
 # first argument location of phantomjs, then location of scraping script
 system("E:///phantomjs/bin/phantomjs phantomJS_scripts/scrape_course1.js")
 
+phantom_link <- paste0("phantomJS_htmlpages/", "free-introduction-to-r", ".html")
+
 #scraping links
 participants <- read_html(phantom_link) %>% 
   html_node(css = ".header-hero__footer") %>% 
@@ -78,6 +80,12 @@ participants <- read_html(phantom_link) %>%
   str_replace_all("\\,", "") %>% 
   str_extract("[0-9]+ Participants") %>% 
   str_extract("[0-9]+")
+
+participants <- read_html(phantom_link) %>% 
+  html_node(css = ".header-hero__stat--participants") %>% 
+  html_text() %>%
+  readr::parse_number()
+
 
 
 
@@ -101,11 +109,9 @@ scrape_participants <- function(technology, course) {
   
   #scraping links
   participants <- read_html(local_html) %>% 
-    html_node(css = ".header-hero__footer") %>% 
+    html_node(css = ".header-hero__stat--participants") %>% 
     html_text() %>%
-    str_replace_all("\\,", "") %>% 
-    str_extract("[0-9]+ Participants") %>% 
-    str_extract("[0-9]+")
+    readr::parse_number()
   
   data.frame(technology = technology,
              course = course,
