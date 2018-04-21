@@ -2,5 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-phantomJS_htmlpages
-phantomJS_scripts
+phantomJS_htmlpages/
+phantomJS_scripts/
+phantomJS_htmlpages/free-introduction-to-r.html
