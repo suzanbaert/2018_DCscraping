@@ -41,7 +41,7 @@ get_mainpages <- function(technology) {
 all_links <- map_df(c("r", "python"), get_mainpages)
 
 
-all_courses <- all_links[c(59:214, 325:390), ]
+all_courses <- all_links[c(60:223, 336:405), ]
 all_courses <- all_courses[duplicated(all_courses), ]
 all_courses$links <- str_replace(all_courses$links, "/courses/", "")
 
@@ -73,13 +73,6 @@ system("E:///phantomjs/bin/phantomjs phantomJS_scripts/scrape_course1.js")
 
 phantom_link <- paste0("phantomJS_htmlpages/", "free-introduction-to-r", ".html")
 
-#scraping links
-participants <- read_html(phantom_link) %>% 
-  html_node(css = ".header-hero__footer") %>% 
-  html_text() %>%
-  str_replace_all("\\,", "") %>% 
-  str_extract("[0-9]+ Participants") %>% 
-  str_extract("[0-9]+")
 
 participants <- read_html(phantom_link) %>% 
   html_node(css = ".header-hero__stat--participants") %>% 
@@ -88,9 +81,41 @@ participants <- read_html(phantom_link) %>%
 
 
 
+read_html(url_link) %>% 
+  html_node(css = ".header-hero__stat--participants") %>% 
+  html_text() %>%
+  readr::parse_number()
 
 
-#### To a function ####
+
+#### To a function via phantomjs ####
+
+
+scrape_participants_direct <- function(technology, course) {
+  Sys.sleep(1)
+  
+  url <- paste0("https://www.datacamp.com/courses/", course)
+
+  
+  #scraping links
+  participants <- read_html(url) %>% 
+    html_node(css = ".header-hero__stat--participants") %>% 
+    html_text() %>%
+    readr::parse_number()
+  
+  data.frame(technology = technology,
+             course = course,
+             date = Sys.Date(),
+             participants = participants,
+             stringsAsFactors = FALSE)
+}
+
+
+
+
+
+
+#### To a function via phantomjs ####
 
 
 scrape_participants <- function(technology, course) {
@@ -122,12 +147,19 @@ scrape_participants <- function(technology, course) {
 }
 
 
-particants <- purrr::map2_df(all_courses$technology, all_courses$links, scrape_participants)
-saveRDS(particants, "data/participants180419.RDS")
+participants <- purrr::map2_df(all_courses$technology, all_courses$links, scrape_participants_direct)
 
 
 
 
-#resources
-"https://www.r-bloggers.com/web-scraping-javascript-rendered-sites/"
-"http://blog.brooke.science/posts/scraping-javascript-websites-in-r/"
+saveRDS(participants, "data/participants180518.RDS")
+
+
+prev_participants <- readRDS("data/participants180419.RDS")
+prev_participants$participants <- as.numeric(prev_participants$participants)
+
+
+all_participants <- dplyr::bind_rows(prev_participants, participants)
+saveRDS(all_participants, "data/all_participants180518.RDS")
+
+
